@@ -260,19 +260,24 @@ positions:
 
 ### Gauge Card (innebygd)
 
+Viser antall dager igjen til neste tømming. Fargen reflekterer hvor mye tid det er igjen – rød når tømmingen er nær.
+
 ```yaml
 type: gauge
 entity: sensor.neste_tomming
-attribute: restavfall_progress
+attribute: restavfall_dager_igjen
 name: Restavfall
-unit: "%"
+unit: "dager"
 min: 0
-max: 100
+max: 14
+needle: true
 severity:
-  green: 0
-  yellow: 50
-  red: 80
+  red: 0
+  yellow: 3
+  green: 7
 ```
+
+> **Tips:** Juster `max` etter hentehyppigheten for fraksjonen (f.eks. `7` for ukentlig, `14` for annenhver uke). `needle: true` gjør at viseren peker på verdien og fargene vises korrekt.
 
 ---
 
