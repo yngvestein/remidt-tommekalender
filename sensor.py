@@ -260,7 +260,29 @@ class RemidtTommekalenderSensor(CoordinatorEntity, SensorEntity):
                         date2 = datetime.strptime(future_dates[1], "%Y-%m-%d").date()
                         intervall = (date2 - date1).days
                         forrige_dato = (date1 - timedelta(days=intervall)).strftime("%Y-%m-%d")
-                        _LOGGER.debug("Estimating previous date for %s: %s", fraction, forrige_dato)
+                        _LOGGER.debug(
+                            "Estimating previous date for %s from two future dates: %s",
+                            fraction,
+                            forrige_dato,
+                        )
+                    except ValueError:
+                        pass
+                elif len(future_dates) == 1:
+                    # Only one future date known – assume we're halfway through the cycle.
+                    # Progress will self-correct once history builds up or the API
+                    # returns a second upcoming date.
+                    try:
+                        days_left = days_until(future_dates[0])
+                        if days_left is not None and days_left > 0:
+                            neste = datetime.strptime(future_dates[0], "%Y-%m-%d").date()
+                            forrige_dato = (neste - timedelta(days=days_left * 2)).strftime(
+                                "%Y-%m-%d"
+                            )
+                            _LOGGER.debug(
+                                "Estimating previous date for %s (halfway assumption): %s",
+                                fraction,
+                                forrige_dato,
+                            )
                     except ValueError:
                         pass
 
