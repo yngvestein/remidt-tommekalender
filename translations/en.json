@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Remidt Waste Collection",
+        "description": "Enter your street address to search for waste collection dates.",
+        "data": {
+          "address": "Address"
+        },
+        "data_description": {
+          "address": "Type your street address (e.g. Storgata 1, Mysen)"
+        }
+      },
+      "select_address": {
+        "title": "Select Address",
+        "description": "Select your address from the list below.",
+        "data": {
+          "address": "Address"
+        }
+      }
+    },
+    "error": {
+      "no_suggestions": "No addresses found. Try a different search term.",
+      "invalid_address": "Invalid address selection. Please try again."
+    },
+    "abort": {
+      "already_configured": "This address is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure Remidt Waste Collection",
+        "data": {
+          "update_interval": "Update interval (days)"
+        },
+        "data_description": {
+          "update_interval": "How often to fetch new collection dates from Remidt (1–7 days)."
+        }
+      }
+    }
+  }
+}

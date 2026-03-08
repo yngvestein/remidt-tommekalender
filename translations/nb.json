@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Remidt Tømmekalender",
+        "description": "Skriv inn gateadressen din for å søke etter tømmedatoer.",
+        "data": {
+          "address": "Adresse"
+        },
+        "data_description": {
+          "address": "Skriv inn gateadressen din (f.eks. Storgata 1, Mysen)"
+        }
+      },
+      "select_address": {
+        "title": "Velg adresse",
+        "description": "Velg adressen din fra listen nedenfor.",
+        "data": {
+          "address": "Adresse"
+        }
+      }
+    },
+    "error": {
+      "no_suggestions": "Ingen adresser funnet. Prøv et annet søkeord.",
+      "invalid_address": "Ugyldig adressevalg. Vennligst prøv igjen."
+    },
+    "abort": {
+      "already_configured": "Denne adressen er allerede konfigurert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Konfigurer Remidt Tømmekalender",
+        "data": {
+          "update_interval": "Oppdateringsintervall (dager)"
+        },
+        "data_description": {
+          "update_interval": "Hvor ofte tømmedatoer hentes fra Remidt (1–7 dager)."
+        }
+      }
+    }
+  }
+}

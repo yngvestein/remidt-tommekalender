@@ -1,0 +1,13 @@
+refresh_schedule:
+  name: Oppdater tømmekalender
+  description: Manuelt oppdater tømmekalenderen for en spesifikk adresse
+  target:
+    device:
+      integration: remidt_tommekalender
+  fields:
+    address_id:
+      name: Adresse-ID
+      description: Adresse-ID som skal oppdateres
+      example: "12345"
+      selector:
+        text:
