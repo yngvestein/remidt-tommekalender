@@ -26,3 +26,6 @@ build/
 .env
 .venv/
 venv/
+
+# Claude project memory – inneholder hemmeligheter, skal aldri til GitHub
+CLAUDE.md

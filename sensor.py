@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -195,6 +196,23 @@ class RemidtTommekalenderSensor(CoordinatorEntity, SensorEntity):
             model="Tømmekalender",
             sw_version="1.0",
         )
+
+    async def async_added_to_hass(self) -> None:
+        """Registrer midnatt-callback så 'dager igjen' holder seg oppdatert mellom API-hentinger."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_track_time_change(
+                self.hass,
+                self._handle_midnight_update,
+                hour=0,
+                minute=0,
+                second=0,
+            )
+        )
+
+    def _handle_midnight_update(self, now) -> None:
+        """Skriv ny tilstand ved midnatt uten å hente nye data fra API."""
+        self.async_write_ha_state()
 
     def _get_next_collections(self) -> list[dict]:
         """Return sorted list of upcoming collections across all fractions."""

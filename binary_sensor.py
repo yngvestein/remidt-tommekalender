@@ -9,6 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
@@ -64,6 +65,27 @@ class RemidtCollectionBinarySensor(CoordinatorEntity, BinarySensorEntity):
             model="Tømmekalender",
             sw_version="1.0",
         )
+
+    async def async_added_to_hass(self) -> None:
+        """Registrer tidsbaserte callbacks så sensoren slår seg av/på til rett tid."""
+        await super().async_added_to_hass()
+        # Midnatt: ny dag kan gi nye treff
+        # 13:00: slå på dagen før tømming
+        # 14:00: slå av på tømmingsdagen
+        for hour in (0, 13, 14):
+            self.async_on_remove(
+                async_track_time_change(
+                    self.hass,
+                    self._handle_time_update,
+                    hour=hour,
+                    minute=0,
+                    second=0,
+                )
+            )
+
+    def _handle_time_update(self, now) -> None:
+        """Skriv ny tilstand ved nøkkeltidspunkter."""
+        self.async_write_ha_state()
 
     @property
     def is_on(self) -> bool:
