@@ -1,5 +1,6 @@
 {
   "name": "Remidt Tømmekalender",
   "content_in_root": true,
-  "render_readme": true
+  "render_readme": true,
+  "homeassistant": "2025.3.0"
 }

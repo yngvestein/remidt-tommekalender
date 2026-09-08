@@ -10,17 +10,20 @@ Integrasjonen henter tømmedatoer direkte fra Remidts API og oppretter sensorer 
 
 ## Funksjoner
 
-- **Sensor** – viser neste tømming og antall dager igjen
-- **Binære sensorer** – én per fraksjon, slår seg på kvelden før og hele tømmedagen
+- **Sensor** – viser neste tømming og antall dager igjen som lesbar tekst
+- **Tidsstempel-sensor** – neste tømming som `device_class: timestamp`, klar for automasjoner
+- **Kalender** – alle tømmedatoer som heldagshendelser i HA-kalenderen
+- **Binære sensorer** – én per fraksjon, slår seg på kvelden før (kl. 13) og av på tømmedagen (kl. 14)
 - **Progress-attributter** – syklusfremdrift (0–100 %) og intervall per fraksjon
 - **Historikk** – husker forrige tømmingsdato mellom oppdateringer
-- **Oppdateringsintervall** – kan konfigureres fra 1 til 7 dager
+- **Planlagt daglig synk** – henter på et fast, jittret tidspunkt (standard 03:00–04:59) med automatisk retry ved feil
+- **Egendefinert Lovelace-kort** – `custom:remidt-tommekalender-card` lastes automatisk
 
 ---
 
 ## Krav
 
-- Home Assistant 2023.1 eller nyere
+- Home Assistant 2025.3 eller nyere (kortvelger-forslag krever 2026.6)
 - Adresse innenfor Remidts dekningsområde (primært Indre Østfold)
 
 ---
@@ -57,7 +60,9 @@ Integrasjonen konfigureres via brukergrensesnittet:
 
 | Innstilling | Standard | Beskrivelse |
 |---|---|---|
-| Oppdateringsintervall | 2 dager | Hvor ofte nye tømmedatoer hentes fra Remidt |
+| Time for daglig synk | `3` | Time på døgnet (0–23) synken starter. Minuttet jittres automatisk per installasjon, slik at alle hentinger ikke skjer samtidig. Med standard `3` skjer hentingen et sted mellom 03:00 og 04:59. |
+
+> **API-hensyn:** Renovasjonsdata er statiske i måneder av gangen. Integrasjonen henter kun én gang per døgn (på det jittrede tidspunktet), pluss ett forsøk ved oppstart. Slår hentingen feil, prøver den automatisk igjen en gang i timen til den lykkes.
 
 ---
 
@@ -65,9 +70,9 @@ Integrasjonen konfigureres via brukergrensesnittet:
 
 ### Sensor – `sensor.neste_tomming`
 
-Viser hvilken fraksjon som tømmes neste, og antall dager til tømmingen.
+Viser hvilken fraksjon som tømmes neste, og antall dager til tømmingen, som lesbar tekst.
 
-**Eksempel på tilstand:** `Restavfall om 3 dager`
+**Eksempel på tilstand:** `Restavfall om 3 dager` · `Papir i morgen` · `Restavfall i dag`
 
 #### Attributter
 
@@ -81,13 +86,75 @@ Viser hvilken fraksjon som tømmes neste, og antall dager til tømmingen.
 | `{fraksjon}_progress` | `50` | Prosent gjennom syklusen (0–100) |
 | `kommende_tømminger` | `Restavfall om 3 dager; Papir om 10 dager` | Oppsummering av de 3 neste |
 
-Fraksjonsnavnene er lowercase med understrek, f.eks. `restavfall`, `papir`, `glass_og_metall`.
+Fraksjonsnavnene er lowercase med understrek, f.eks. `restavfall`, `papir`, `glass_og_metallemballasje`.
+
+---
+
+### Tidsstempel-sensor – `sensor.tommekalender_neste_tomming_tidspunkt`
+
+Viser neste tømming som en ekte `timestamp` (lokal midnatt på tømmedagen). Gjør det enkelt å bruke i automasjoner og templates uten manuell parsing.
+
+**Eksempel på tilstand:** `2025-03-12T00:00:00+01:00`
+
+#### Attributter
+
+| Attributt | Eksempel | Beskrivelse |
+|---|---|---|
+| `fraksjon` | `Restavfall` | Hvilken fraksjon som tømmes neste |
+| `dato` | `2025-03-12` | Dato som streng |
+
+**Eksempel i template:**
+```yaml
+{{ (states('sensor.tommekalender_neste_tomming_tidspunkt') | as_datetime - now()).days }} dager igjen
+```
+
+---
+
+### Kalender – `calendar.tommekalender`
+
+Alle tømmedatoer eksponeres som heldagshendelser i HA-kalenderen. Gir:
+- Visning i **Kalender**-dashboardet
+- Automation-triggere på `calendar.calendar_event` (f.eks. dagen før)
+- Tilgang via `state_attr('calendar.tommekalender', 'start_time')` / `message`
+
+---
 
 ### Binære sensorer – én per fraksjon
 
-Slår seg **på** kvelden før tømming (kl. 13:00) og **av** tømmingsdagen kl. 14:00. Nyttig for automations og varsler.
+Opprettes dynamisk for hver fraksjon som dukker opp i data. Slår seg **på** kvelden før tømming (kl. 13:00) og **av** tømmingsdagen kl. 14:00. Nyttig for automations og varsler.
 
 **Eksempel:** `binary_sensor.restavfall_tomming`
+
+**Eksempel på automation med kalender:**
+```yaml
+trigger:
+  - platform: calendar
+    event: start
+    offset: "-18:00:00"
+    entity_id: calendar.tommekalender
+action:
+  - service: notify.mobile_app
+    data:
+      message: "{{ trigger.calendar_event.summary }} i morgen"
+```
+
+---
+
+## Egendefinert kort – `custom:remidt-tommekalender-card`
+
+Integrasjonen registrerer kortet selv som en **dashbord-ressurs** (Innstillinger → Dashbord → Ressurser), på samme måte som HACS gjør det. Du trenger ikke legge til noe manuelt, og kortet dukker opp i kortvelgeren under *Egendefinert*. Fra HA 2026.6 foreslås det også automatisk når du velger `sensor.neste_tomming`.
+
+```yaml
+type: custom:remidt-tommekalender-card
+entity: sensor.neste_tomming   # valgfri, dette er standard
+title: Tømmeplaner            # valgfri overskrift
+```
+
+Kortet viser alle fraksjoner sortert etter neste tømming, med syklusprogressbar og fargekoding (grønn → oransje → rød). Det har en enkel visuell editor og støtter seksjonsvisning (`getGridOptions`).
+
+> **Dashbord-ressurser i YAML-modus** (`lovelace: resource_mode: yaml`): da kan ikke integrasjonen skrive til ressurslista. Kortet lastes i stedet som ekstra modul, og du får en melding i loggen med URL-en du kan legge inn manuelt: `url: /remidt_tommekalender/remidt-tommekalender-card.js?v=<versjon>`, `type: module`.
+
+> **Cache-busting:** Ressurs-URL-en bærer integrasjonens versjonsnummer, og oppdateres automatisk når integrasjonen oppgraderes. Etter en oppdatering er en hard refresh (Ctrl+Shift+R) vanligvis nok.
 
 ---
 
@@ -329,6 +396,13 @@ template:
 ### Integrasjonen laster ikke data
 - Sjekk at adressen er innenfor Remidts dekningsområde
 - Se Home Assistant-loggen (**Innstillinger → System → Logger**) for feilmeldinger
+- Slår hentingen feil ved oppstart, prøver integrasjonen automatisk på nytt innen en time
+
+### Kortet viser «Konfigurasjonsfeil» / «Custom element doesn't exist»
+- Sjekk at ressursen finnes under **Innstillinger → Dashbord → Ressurser** (`/remidt_tommekalender/remidt-tommekalender-card.js?v=…`). Mangler den, er dashbord-ressursene trolig i YAML-modus – se avsnittet om kortet.
+- Fjern eventuelle gamle, manuelle ressursoppføringer for kortet, så det bare lastes én gang
+- Prøv hard refresh (Ctrl+Shift+R)
+- Versjoner før 0.4.0 lastet kortet via `add_extra_js_url`, som i HA 2026.x gir en tilfeldig «Custom element doesn't exist» fordi kortet kunne bli registrert før HA sin custom-elements-polyfill var på plass. Oppgrader.
 
 ---
 

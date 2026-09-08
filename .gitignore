@@ -29,3 +29,6 @@ venv/
 
 # Claude project memory – inneholder hemmeligheter, skal aldri til GitHub
 CLAUDE.md
+
+# Claude Code-innstillinger
+.claude/

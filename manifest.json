@@ -1,13 +1,13 @@
 {
   "domain": "remidt_tommekalender",
   "name": "Remidt Tømmekalender",
-  "config_flow": true,
-  "dependencies": [],
   "codeowners": ["@yngvestein"],
-  "requirements": [],
-  "version": "0.1.2",
-  "iot_class": "cloud_polling",
-  "homeassistant": "2024.1.0",
+  "config_flow": true,
+  "dependencies": ["frontend", "http", "lovelace"],
   "documentation": "https://github.com/yngvestein/remidt-tommekalender",
-  "issue_tracker": "https://github.com/yngvestein/remidt-tommekalender/issues"
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/yngvestein/remidt-tommekalender/issues",
+  "requirements": [],
+  "version": "0.4.0"
 }

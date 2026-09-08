@@ -32,12 +32,29 @@
       "init": {
         "title": "Configure Remidt Waste Collection",
         "data": {
-          "update_interval": "Update interval (days)"
+          "refresh_hour": "Daily sync hour (0–23)"
         },
         "data_description": {
-          "update_interval": "How often to fetch new collection dates from Remidt (1–7 days)."
+          "refresh_hour": "Hour of day to fetch new collection dates from Remidt. The minute is randomized per installation to spread load. Default 03."
         }
       }
+    }
+  },
+  "services": {
+    "refresh_schedule": {
+      "name": "Refresh schedule",
+      "description": "Fetch the waste collection schedule for an address from Remidt right now.",
+      "fields": {
+        "address_id": {
+          "name": "Address ID",
+          "description": "The Remidt address ID configured for the integration."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_address": {
+      "message": "No configured address with ID {address_id}."
     }
   }
 }

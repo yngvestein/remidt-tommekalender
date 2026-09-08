@@ -32,12 +32,29 @@
       "init": {
         "title": "Konfigurer Remidt Tømmekalender",
         "data": {
-          "update_interval": "Oppdateringsintervall (dager)"
+          "refresh_hour": "Time for daglig synk (0–23)"
         },
         "data_description": {
-          "update_interval": "Hvor ofte tømmedatoer hentes fra Remidt (1–7 dager)."
+          "refresh_hour": "Hvilken time på døgnet tømmedatoer hentes fra Remidt. Minuttet randomiseres per installasjon for å spre lasten. Standard 03."
         }
       }
+    }
+  },
+  "services": {
+    "refresh_schedule": {
+      "name": "Oppdater tømmekalender",
+      "description": "Hent tømmekalenderen for en adresse fra Remidt nå.",
+      "fields": {
+        "address_id": {
+          "name": "Adresse-ID",
+          "description": "Remidt sin adresse-ID som integrasjonen er satt opp med."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_address": {
+      "message": "Ingen konfigurert adresse med ID {address_id}."
     }
   }
 }

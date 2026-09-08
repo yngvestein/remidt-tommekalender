@@ -1,124 +1,97 @@
-"""Platform for binary sensor integration."""
+"""Binære sensorer: én per fraksjon, på fra dagen før kl. 13 til tømmedagen kl. 14."""
+
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timedelta
+import logging
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_time_change
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import BINARY_SENSOR_OFF_HOUR, BINARY_SENSOR_ON_HOUR, DOMAIN
+from .coordinator import RemidtConfigEntry
+from .entity import RemidtEntity
 
 _LOGGER = logging.getLogger(__name__)
+
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    entry: RemidtConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the binary sensor platform."""
-    _LOGGER.debug(
-        "Starting async_setup_entry for binary sensor platform, entry %s", entry.entry_id
-    )
+    """Opprett én binær sensor per fraksjon, også for fraksjoner som dukker opp senere."""
+    coordinator = entry.runtime_data
+    known: set[str] = set()
 
-    if DOMAIN not in hass.data or entry.entry_id not in hass.data[DOMAIN]:
-        _LOGGER.error("Coordinator not found in hass.data for entry %s.", entry.entry_id)
-        return
-
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-
-    if not coordinator.data:
-        _LOGGER.error("No data received for entry %s. Skipping entity creation.", entry.entry_id)
-        return
-
-    async_add_entities(
-        [
+    @callback
+    def _add_new_fractions() -> None:
+        if not coordinator.data:
+            return
+        new = [
             RemidtCollectionBinarySensor(coordinator, entry.title, fraction)
             for fraction in coordinator.data
-        ],
-        True,
-    )
+            if fraction not in known
+        ]
+        if new:
+            known.update(e.fraction for e in new)
+            async_add_entities(new)
+
+    _add_new_fractions()
+    entry.async_on_unload(coordinator.async_add_listener(_add_new_fractions))
 
 
-class RemidtCollectionBinarySensor(CoordinatorEntity, BinarySensorEntity):
-    """Binary sensor representing collection day status."""
+class RemidtCollectionBinarySensor(RemidtEntity, BinarySensorEntity):
+    """På når det er på tide å sette ut dunken for denne fraksjonen."""
+
+    _attr_icon = "mdi:delete-alert"
 
     def __init__(self, coordinator, address_name: str, fraction: str) -> None:
-        """Initialize the binary sensor."""
-        super().__init__(coordinator)
+        """Initialiser sensoren."""
+        super().__init__(coordinator, address_name)
         self.fraction = fraction
-        fraction_display = fraction.replace("_", " ").title()
-        self._attr_name = f"{fraction_display} tømming"
+        self._attr_name = f"{fraction.replace('_', ' ').title()} tømming"
         self._attr_unique_id = f"{DOMAIN}_{coordinator.address_id}_{fraction}_binary_sensor"
-        self._attr_icon = "mdi:delete-alert"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.address_id)},
-            name=f"Tømmekalender {address_name}",
-            manufacturer="Remidt",
-            model="Tømmekalender",
-            sw_version="1.0",
-        )
 
     async def async_added_to_hass(self) -> None:
-        """Registrer tidsbaserte callbacks så sensoren slår seg av/på til rett tid."""
+        """Skriv ny tilstand ved midnatt og ved på-/av-tidspunktene."""
         await super().async_added_to_hass()
-        # Midnatt: ny dag kan gi nye treff
-        # 13:00: slå på dagen før tømming
-        # 14:00: slå av på tømmingsdagen
-        for hour in (0, 13, 14):
+        for hour in (0, BINARY_SENSOR_ON_HOUR, BINARY_SENSOR_OFF_HOUR):
             self.async_on_remove(
                 async_track_time_change(
-                    self.hass,
-                    self._handle_time_update,
-                    hour=hour,
-                    minute=0,
-                    second=0,
+                    self.hass, self._handle_time_update, hour=hour, minute=0, second=0
                 )
             )
 
+    @callback
     def _handle_time_update(self, now) -> None:
-        """Skriv ny tilstand ved nøkkeltidspunkter."""
         self.async_write_ha_state()
 
     @property
     def is_on(self) -> bool:
-        """Return true from day before at 13:00 until collection day at 14:00."""
+        """Sann fra dagen før kl. BINARY_SENSOR_ON_HOUR til tømmedagen kl. BINARY_SENSOR_OFF_HOUR."""
         if not self.coordinator.data:
             return False
 
-        dates = self.coordinator.data.get(self.fraction, [])
         now = dt_util.now()
         today = now.date()
         tomorrow = today + timedelta(days=1)
 
-        for date_str in dates:
+        for date_str in self.coordinator.data.get(self.fraction, []):
             try:
                 collection_date = datetime.strptime(date_str, "%Y-%m-%d").date()
             except (ValueError, TypeError):
                 _LOGGER.warning("Invalid date format for %s: %s", self.fraction, date_str)
                 continue
-
             if collection_date > tomorrow:
-                # Dates are sorted; no later date can match either
-                break
-
-            # Turn on day before at 13:00
-            if today == collection_date - timedelta(days=1) and now.hour >= 13:
+                break  # datoene er sortert
+            if today == collection_date - timedelta(days=1) and now.hour >= BINARY_SENSOR_ON_HOUR:
                 return True
-            # Active on collection day until 14:00
-            if today == collection_date and now.hour < 14:
+            if today == collection_date and now.hour < BINARY_SENSOR_OFF_HOUR:
                 return True
-
         return False
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        return self.coordinator.last_update_success

@@ -3,11 +3,12 @@ import logging
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from aiohttp import ClientSession, ClientError
 
-from .const import DOMAIN
+from .const import DOMAIN, DEFAULT_REFRESH_HOUR
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,11 +24,12 @@ class RemidtTommekalenderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._suggestions: list[dict] = []
 
     @staticmethod
+    @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
-        return RemidtTommekalenderOptionsFlow(config_entry)
+        return RemidtTommekalenderOptionsFlow()
 
-    async def async_step_user(self, user_input=None) -> FlowResult:
+    async def async_step_user(self, user_input=None) -> ConfigFlowResult:
         """Handle the initial step."""
         _LOGGER.debug("Starting async_step_user")
         errors = {}
@@ -52,7 +54,7 @@ class RemidtTommekalenderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_select_address(self, user_input=None) -> FlowResult:
+    async def async_step_select_address(self, user_input=None) -> ConfigFlowResult:
         """Handle the step where the user selects an address from the suggestions."""
         _LOGGER.debug("Starting async_step_select_address")
         errors = {}
@@ -134,11 +136,11 @@ class RemidtTommekalenderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class RemidtTommekalenderOptionsFlow(config_entries.OptionsFlow):
-    """Handle options for Remidt Tømmekalender."""
+    """Handle options for Remidt Tømmekalender.
 
-    def __init__(self, config_entry):
-        """Initialize options flow."""
-        self.config_entry = config_entry
+    `self.config_entry` settes ikke lenger manuelt: fra HA 2025.12 er den en
+    read-only property på OptionsFlow som slås opp automatisk.
+    """
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
@@ -149,8 +151,10 @@ class RemidtTommekalenderOptionsFlow(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema({
                 vol.Optional(
-                    "update_interval",
-                    default=self.config_entry.options.get("update_interval", 2),
-                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=7)),
+                    "refresh_hour",
+                    default=self.config_entry.options.get(
+                        "refresh_hour", DEFAULT_REFRESH_HOUR
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
             }),
         )

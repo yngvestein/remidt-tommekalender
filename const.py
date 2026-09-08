@@ -5,7 +5,29 @@ from homeassistant.util import dt as dt_util
 
 DOMAIN = "remidt_tommekalender"
 
+# Beholdt for bakoverkompatibilitet (ikke lenger brukt til polling).
 DEFAULT_UPDATE_INTERVAL_DAYS = 2
+
+# Daglig planlagt synk: starttime på døgnet (0–23). Selve tidspunktet jittres
+# deterministisk per installasjon innenfor et vindu (se under), slik at ikke
+# alle HA-instanser treffer API-et samtidig.
+DEFAULT_REFRESH_HOUR = 3
+
+# Bredden på vinduet (timer) som hentingen spres utover, fra DEFAULT_REFRESH_HOUR.
+# Med start 03 og vindu 2 fordeles kallene jevnt mellom 03:00 og 04:59.
+# 3000 installasjoner ⇒ ~25 kall/minutt i stedet for alle samtidig.
+REFRESH_WINDOW_HOURS = 2
+
+# Sikkerhetsnett-intervall: dersom den planlagte synken aldri skulle fyre,
+# vil koordinatoren uansett hente på nytt etter dette.
+SAFETY_NET_INTERVAL_HOURS = 24
+
+# Hvor lenge etter en mislykket henting vi prøver igjen (til det lykkes).
+RETRY_INTERVAL_HOURS = 1
+
+# Binary sensor: slå på dagen før kl. 13, slå av på tømmedagen kl. 14.
+BINARY_SENSOR_ON_HOUR = 13
+BINARY_SENSOR_OFF_HOUR = 14
 
 STORAGE_VERSION = 2
 HISTORY_RETENTION_DAYS = 30  # Fjern historikk for fraksjoner som ikke er sett på X dager
